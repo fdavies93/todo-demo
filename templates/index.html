@@ -1,0 +1,155 @@
+<!doctype html>
+<link rel="stylesheet" href="{{ url_for('static',filename='styles/todo.css') }}">
+<script>
+
+        endpoint = "{{ endpoint }}"
+
+        cur_ids = new Map()
+
+        window.onload = function() {
+        }
+
+        document.onkeydown = function (e) {
+            e = e || window.event;
+            switch (e.which || e.keyCode) {
+                    case 13: 
+                        var add_box = document.getElementById("add_item_text")
+                        add_item(add_box)
+            }
+        }
+
+        function fetch_json(url, data, method) {
+            var data_obj = {
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            }
+            if (method == "POST") {
+                data_obj.method = "POST"
+                data_obj.body = JSON.stringify(data)
+            }
+            return fetch(url, data_obj)
+        }
+
+        function get_item_id(caller) {
+                return caller.id.split("_")[1]
+        }
+
+        function input_clicked(caller) {
+            var id = get_item_id(caller)
+            var url = endpoint + "/todo/update/" + id
+            fetch_json(url, { state: caller.checked }, "POST")
+            strikethrough_alter(id, caller.checked)
+        }
+
+        function delete_item(caller) {
+            var id = get_item_id(caller)
+            console.log(caller)
+            var url = endpoint + "/todo/delete/" + id
+            fetch_json(url, {}, "POST")
+            var parent = document.getElementById(id)
+            parent.remove()
+        }
+
+        function delete_cleared(caller) {
+            var url = endpoint + "/todo/get-cleared/"
+            fetch_json(url, {}, "GET").then( res => res.json() ).then( (json) => {
+                
+            } )
+        }
+
+        function add_item(caller) {
+                var new_item_textbox = document.getElementById("add_item_text")
+                var url = endpoint + "/todo/add/"
+                return fetch_json(url, { "text": new_item_textbox.value }, "POST").then( (res) => res.json() ).then( (json) => {
+                    add_view_item( json )
+                    new_item_textbox.value = ""
+                } )
+        }
+
+        function add_view_item(item) {
+            var id = item["id"]
+            var done = item["done"]
+            var text = item["text"]
+
+            var checkbox = document.createElement("input")
+            checkbox.type = "checkbox"
+            checkbox.checked = done
+            checkbox.id = "box_" + id
+            checkbox.onclick = function () {
+                input_clicked(checkbox)
+            }
+            
+            var label = document.createElement("label")
+            label.htmlFor = "box_" + id
+            label.id = "text_" + id
+            label.innerHTML = text
+            label.classList = []
+            if (item.done) label.className = "strike"
+
+            var deleteInner = document.createElement("a")
+            deleteInner.href = "#"
+            deleteInner.className = "fill_link"
+            deleteInner.innerHTML = "[Delete]"
+
+            var deleteSpan = document.createElement("span")
+            deleteSpan.id = "delete_" + id
+            deleteSpan.className = "todo_delete"
+            deleteSpan.onclick = () => {
+                delete_item(deleteSpan)
+            }
+
+            var innerSpan = document.createElement("span")
+            innerSpan.className = "todo_toggle"
+
+            var outerSpan = document.createElement("span")
+            outerSpan.className = "todo_item"
+            outerSpan.id = id
+            
+            // add to DOM
+
+            var wrapper = document.getElementById("wrapper")
+
+            wrapper.appendChild(outerSpan)
+            outerSpan.appendChild(innerSpan)
+            outerSpan.appendChild(deleteSpan)
+            deleteSpan.appendChild(deleteInner)
+            innerSpan.appendChild(checkbox)
+            innerSpan.appendChild(label)
+        }
+
+        function strikethrough_alter(id, enable) {
+                var label = document.getElementById("text_" + id)
+                console.log("check")
+                if (enable) label.classList.add("strike")
+                else label.classList.remove("strike")
+        }
+</script>
+<html>
+    <body>
+        <div class="outer_wrapper">
+            <div id="wrapper" class="inner_wrapper">
+            {% for item in todo_items %}
+                <span class = "todo_item" id="{{item.id}}">
+                    <span class="todo_toggle">
+                    {% if item.done %}
+                        <input id="{{ 'box_' + item.id }}" checked type="checkbox" onclick="input_clicked(this)">
+                        <label id="{{ 'text_' + item.id}}" class="strike" for="{{ 'box_' + item.id }}">{{item.text}}</label>
+                    {% else %}
+                        <input id="{{ 'box_' + item.id }}" type="checkbox" onclick="input_clicked(this)">
+                        <label id="{{ 'text_' + item.id}}" for="{{ 'box_' + item.id }}">{{item.text}}</label>
+                    {% endif %}
+                    </span>
+                    <span id="{{ 'delete_' + item.id }}" class="todo_delete" onclick="delete_item(this)">
+                        <a href="#" class="fill_link">[Delete]</a>
+                    </span>
+                </span>
+            {% endfor %}
+            </div>
+            <span class="add_box_wrapper">
+                <input type="text" id="add_item_text">
+                <input type="button" value="Add Record" onclick="add_item(this)">
+            </span>
+        </div>
+    </body>
+</html>
